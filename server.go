@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	//"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -18,11 +19,12 @@ var client *mongo.Client
 var collection *mongo.Collection
 
 type Movie struct {
-	ID       int    `json:"id" bson:"_id,omitempty"`
-	Title    string `json:"title" bson:"title"`
-	Director string `json:"director" bson:"director"`
-	Year     int    `json:"year" bson:"year"`
+	ID       primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
+	Title    string             `json:"title,omitempty" bson:"title,omitempty"`
+	Director string             `json:"director,omitempty" bson:"director,omitempty"`
+	Year     int                `json:"year,omitempty" bson:"year,omitempty"`
 }
+
 
 func main() {
 	var err error
@@ -38,7 +40,7 @@ func main() {
 	}
 	defer client.Disconnect(ctx)
 
-	collection = client.Database("test").Collection("movies")
+	collection = client.Database("movies").Collection("movies1") // Specify the database name and collection name
 
 	router := mux.NewRouter()
 
@@ -100,38 +102,54 @@ func createMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie.ID = res.InsertedID.(int)
+	movie.ID = res.InsertedID.(primitive.ObjectID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(movie)
 }
 
 func updateMovie(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, _ := strconv.Atoi(params["id"])
+	id := params["id"]
+
+	// Convert id to primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
 
 	var movie Movie
 	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	movie.ID = id
+
+	// Set the movie ID
+	movie.ID = objectID
 
 	ctx := context.Background()
-	_, err := collection.ReplaceOne(ctx, bson.M{"_id": id}, movie)
+	_, err = collection.ReplaceOne(ctx, bson.M{"_id": objectID}, movie)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	// Respond with the updated movie
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(movie)
 }
+
 
 func deleteMovie(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, _ := strconv.Atoi(params["id"])
+	id, err := primitive.ObjectIDFromHex(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
 
 	ctx := context.Background()
-	_, err := collection.DeleteOne(ctx, bson.M{"_id": id})
+	_, err = collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -139,3 +157,4 @@ func deleteMovie(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
