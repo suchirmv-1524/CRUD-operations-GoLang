@@ -4,44 +4,60 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	//"io/ioutil"
 	"net/http"
+	"os"
+	//"strconv"
 )
 
 type Movie struct {
+	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Director string `json:"director"`
 	Year     int    `json:"year"`
 }
 
 func main() {
-	// Create a new movie
-	newMovie := Movie{
-		Title:    "The Godfather",
-		Director: "Francis Ford Coppola",
-		Year:     1972,
+	var choice int
+	for {
+		fmt.Println("Menu:")
+		fmt.Println("1. Create a new movie")
+		fmt.Println("2. View all movies")
+		fmt.Println("3. Update a movie")
+		fmt.Println("4. Delete a movie")
+		fmt.Println("5. Exit")
+		fmt.Print("Enter your choice: ")
+		fmt.Scanln(&choice)
+
+		switch choice {
+		case 1:
+			createMovie()
+		case 2:
+			getAllMovies()
+		case 3:
+			updateMovie()
+		case 4:
+			deleteMovie()
+		case 5:
+			fmt.Println("Exiting...")
+			os.Exit(0)
+		default:
+			fmt.Println("Invalid choice")
+		}
 	}
-	createMovie(newMovie)
-
-	// Get all movies
-	getAllMovies()
-
-	// Update a movie
-	updatedMovie := Movie{
-		Title:    "The Godfather",
-		Director: "Francis Ford Coppola",
-		Year:     1972,
-	}
-	updateMovie(1, updatedMovie)
-
-	// Get a specific movie
-	retrieveMovie(1)
-
-	// Delete a movie
-	removeMovie(1)
 }
 
-func createMovie(movie Movie) {
+func createMovie() {
+	var movie Movie
+	fmt.Println("Enter details of the new movie:")
+	fmt.Print("ID: ")
+	fmt.Scanln(&movie.ID)
+	fmt.Print("Title: ")
+	fmt.Scanln(&movie.Title)
+	fmt.Print("Director: ")
+	fmt.Scanln(&movie.Director)
+	fmt.Print("Year: ")
+	fmt.Scanln(&movie.Year)
+
 	jsonData, err := json.Marshal(movie)
 	if err != nil {
 		fmt.Println("Error marshalling JSON:", err)
@@ -57,6 +73,7 @@ func createMovie(movie Movie) {
 
 	fmt.Println("Movie created successfully")
 }
+
 
 func getAllMovies() {
 	resp, err := http.Get("http://localhost:8080/movies")
@@ -75,18 +92,31 @@ func getAllMovies() {
 
 	fmt.Println("All movies:")
 	for _, movie := range movies {
-		fmt.Printf("Title: %s, Director: %s, Year: %d\n", movie.Title, movie.Director, movie.Year)
+		fmt.Printf("ID: %s, Title: %s, Director: %s, Year: %d\n", movie.ID, movie.Title, movie.Director, movie.Year)
 	}
 }
 
-func updateMovie(id int, movie Movie) {
-	jsonData, err := json.Marshal(movie)
+func updateMovie() {
+	var movie Movie
+	fmt.Println("Enter ID of the movie to update: ")
+	fmt.Scanln(&movie.ID)
+
+	var updatedMovie Movie
+	fmt.Println("Enter new details of the movie:")
+	fmt.Print("Title: ")
+	fmt.Scanln(&updatedMovie.Title)
+	fmt.Print("Director: ")
+	fmt.Scanln(&updatedMovie.Director)
+	fmt.Print("Year: ")
+	fmt.Scanln(&updatedMovie.Year)
+
+	jsonData, err := json.Marshal(updatedMovie)
 	if err != nil {
 		fmt.Println("Error marshalling JSON:", err)
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/movies/%d", id), bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/movies/%s", movie.ID), bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
@@ -102,39 +132,15 @@ func updateMovie(id int, movie Movie) {
 	}
 	defer resp.Body.Close()
 
-	/* Print response body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
-	}
-	//fmt.Println("Response Body:", string(body))*/
-
 	fmt.Println("Movie updated successfully")
 }
 
-
-
-func retrieveMovie(id int) {
-	resp, err := http.Get(fmt.Sprintf("http://localhost:8080/movies/%d", id))
-	if err != nil {
-		fmt.Println("Error fetching movie:", err)
-		return
-	}
-	defer resp.Body.Close()
-
+func deleteMovie() {
 	var movie Movie
-	err = json.NewDecoder(resp.Body).Decode(&movie)
-	if err != nil {
-		//fmt.Println("Error decoding response:", err)
-		return
-	}
+	fmt.Println("Enter ID of the movie to delete: ")
+	fmt.Scanln(&movie.ID)
 
-	fmt.Printf("Movie retrieved: Title: %s, Director: %s, Year: %d\n", movie.Title, movie.Director, movie.Year)
-}
-
-func removeMovie(id int) {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:8080/movies/%d", id), nil)
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:8080/movies/%s", movie.ID), nil)
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
