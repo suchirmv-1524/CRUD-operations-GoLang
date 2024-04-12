@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	//"strconv"
 )
 
 type Movie struct {
@@ -110,10 +109,16 @@ func updateMovie() {
 
 	var updatedMovie Movie
 	fmt.Println("Enter new details of the movie:")
+	reader := bufio.NewReader(os.Stdin)
+
 	fmt.Print("Title: ")
-	fmt.Scanln(&updatedMovie.Title)
+	title, _ := reader.ReadString('\n')
+	updatedMovie.Title = strings.TrimSpace(title)
+
 	fmt.Print("Director: ")
-	fmt.Scanln(&updatedMovie.Director)
+	director, _ := reader.ReadString('\n')
+	updatedMovie.Director = strings.TrimSpace(director)
+
 	fmt.Print("Year: ")
 	fmt.Scanln(&updatedMovie.Year)
 
@@ -123,7 +128,8 @@ func updateMovie() {
 		return
 	}
 
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/movies/%s", movie.ID), bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("http://localhost:8080/movies/%s", movie.ID)
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
@@ -141,6 +147,7 @@ func updateMovie() {
 
 	fmt.Println("Movie updated successfully")
 }
+
 
 func deleteMovie() {
 	var movie Movie
