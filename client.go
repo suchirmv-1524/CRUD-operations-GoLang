@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	//"strconv"
 )
 
@@ -49,12 +51,16 @@ func main() {
 func createMovie() {
 	var movie Movie
 	fmt.Println("Enter details of the new movie:")
-	fmt.Print("ID: ")
-	fmt.Scanln(&movie.ID)
+	reader := bufio.NewReader(os.Stdin)
+
 	fmt.Print("Title: ")
-	fmt.Scanln(&movie.Title)
+	title, _ := reader.ReadString('\n')
+	movie.Title = strings.TrimSpace(title)
+
 	fmt.Print("Director: ")
-	fmt.Scanln(&movie.Director)
+	director, _ := reader.ReadString('\n')
+	movie.Director = strings.TrimSpace(director)
+
 	fmt.Print("Year: ")
 	fmt.Scanln(&movie.Year)
 
@@ -73,6 +79,7 @@ func createMovie() {
 
 	fmt.Println("Movie created successfully")
 }
+
 
 
 func getAllMovies() {
