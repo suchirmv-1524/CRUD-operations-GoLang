@@ -1,0 +1,141 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var client *mongo.Client
+var collection *mongo.Collection
+
+type Movie struct {
+	ID       int    `json:"id" bson:"_id,omitempty"`
+	Title    string `json:"title" bson:"title"`
+	Director string `json:"director" bson:"director"`
+	Year     int    `json:"year" bson:"year"`
+}
+
+func main() {
+	var err error
+	client, err = mongo.NewClient(options.Client().ApplyURI("mongodb+srv://SuchirMV:WGBOp8GJ0uFf2NdU@cluster0.rb7ivtw.mongodb.net/"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx := context.Background()
+	err = client.Connect(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Disconnect(ctx)
+
+	collection = client.Database("test").Collection("movies")
+
+	router := mux.NewRouter()
+
+	router.HandleFunc("/movies", getAllMovies).Methods("GET")
+	router.HandleFunc("/movies/{id}", getMovie).Methods("GET")
+	router.HandleFunc("/movies", createMovie).Methods("POST")
+	router.HandleFunc("/movies/{id}", updateMovie).Methods("PUT")
+	router.HandleFunc("/movies/{id}", deleteMovie).Methods("DELETE")
+
+	log.Fatal(http.ListenAndServe(":8080", router))
+}
+
+func getAllMovies(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	cursor, err := collection.Find(ctx, bson.M{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var movies []Movie
+	if err := cursor.All(ctx, &movies); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(movies)
+}
+
+func getMovie(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	var movie Movie
+	ctx := context.Background()
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&movie)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(movie)
+}
+
+func createMovie(w http.ResponseWriter, r *http.Request) {
+	var movie Movie
+	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	res, err := collection.InsertOne(ctx, movie)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	movie.ID = res.InsertedID.(int)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(movie)
+}
+
+func updateMovie(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	var movie Movie
+	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	movie.ID = id
+
+	ctx := context.Background()
+	_, err := collection.ReplaceOne(ctx, bson.M{"_id": id}, movie)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func deleteMovie(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id, _ := strconv.Atoi(params["id"])
+
+	ctx := context.Background()
+	_, err := collection.DeleteOne(ctx, bson.M{"_id": id})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
