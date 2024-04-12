@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	//"fmt"
 	"log"
 	"net/http"
 	"strconv"
-
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -108,39 +106,48 @@ func createMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateMovie(w http.ResponseWriter, r *http.Request) {
-    params := mux.Vars(r)
-    id, err := primitive.ObjectIDFromHex(params["id"])
-    if err != nil {
-        http.Error(w, "Invalid movie ID", http.StatusBadRequest)
-        return
-    }
+	params := mux.Vars(r)
+	id := params["id"]
 
-    var movie Movie
-    if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
-    movie.ID = id
+	// Convert id to primitive.ObjectID
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
 
-    ctx := context.Background()
-    _, err = collection.ReplaceOne(ctx, bson.M{"_id": id}, movie)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	var movie Movie
+	if err := json.NewDecoder(r.Body).Decode(&movie); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(movie)
+	// Set the movie ID
+	movie.ID = objectID
+
+	ctx := context.Background()
+	_, err = collection.ReplaceOne(ctx, bson.M{"_id": objectID}, movie)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Respond with the updated movie
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(movie)
 }
-
 
 
 func deleteMovie(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	id, _ := strconv.Atoi(params["id"])
+	id, err := primitive.ObjectIDFromHex(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid movie ID", http.StatusBadRequest)
+		return
+	}
 
 	ctx := context.Background()
-	_, err := collection.DeleteOne(ctx, bson.M{"_id": id})
+	_, err = collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -148,3 +155,4 @@ func deleteMovie(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
