@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 )
 
 type Movie struct {
-	ID       int    `json:"id"`
 	Title    string `json:"title"`
 	Director string `json:"director"`
 	Year     int    `json:"year"`
@@ -28,18 +28,17 @@ func main() {
 
 	// Update a movie
 	updatedMovie := Movie{
-		ID:       1,
 		Title:    "The Godfather",
 		Director: "Francis Ford Coppola",
 		Year:     1972,
 	}
-	updateMovie(updatedMovie)
+	updateMovie(1, updatedMovie)
 
 	// Get a specific movie
 	getMovie(1)
 
 	// Delete a movie
-	//deleteMovie(1)
+	deleteMovie(1)
 }
 
 func createMovie(movie Movie) {
@@ -76,32 +75,46 @@ func getAllMovies() {
 
 	fmt.Println("All movies:")
 	for _, movie := range movies {
-		fmt.Printf("ID: %d, Title: %s, Director: %s, Year: %d\n", movie.ID, movie.Title, movie.Director, movie.Year)
+		fmt.Printf("Title: %s, Director: %s, Year: %d\n", movie.Title, movie.Director, movie.Year)
 	}
 }
 
-func updateMovie(movie Movie) {
-	jsonData, err := json.Marshal(movie)
-	if err != nil {
-		fmt.Println("Error marshalling JSON:", err)
-		return
-	}
+func updateMovie(id int, movie Movie) {
+    jsonData, err := json.Marshal(movie)
+    if err != nil {
+        fmt.Println("Error marshalling JSON:", err)
+        return
+    }
 
-	req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/movies/%d", movie.ID), bytes.NewBuffer(jsonData))
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return
-	}
+    req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("http://localhost:8080/movies/%d", id), bytes.NewBuffer(jsonData))
+    if err != nil {
+        fmt.Println("Error creating request:", err)
+        return
+    }
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println("Error updating movie:", err)
-		return
-	}
-	defer resp.Body.Close()
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        fmt.Println("Error updating movie:", err)
+        return
+    }
+    defer resp.Body.Close()
 
-	fmt.Println("Movie updated successfully")
+    if resp.StatusCode != http.StatusOK {
+        fmt.Printf("Error updating movie: %s\n", resp.Status)
+        return
+    }
+
+// Print response body for debugging
+responseBody, err := ioutil.ReadAll(resp.Body)
+if err != nil {
+    fmt.Println("Error reading response body:", err)
+    return
+	fmt.Println("Response Body:", string(responseBody))
 }
+
+
+
+
 
 func getMovie(id int) {
 	resp, err := http.Get(fmt.Sprintf("http://localhost:8080/movies/%d", id))
@@ -118,7 +131,7 @@ func getMovie(id int) {
 		return
 	}
 
-	fmt.Printf("Movie retrieved: ID: %d, Title: %s, Director: %s, Year: %d\n", movie.ID, movie.Title, movie.Director, movie.Year)
+	fmt.Printf("Movie retrieved: Title: %s, Director: %s, Year: %d\n", movie.Title, movie.Director, movie.Year)
 }
 
 func deleteMovie(id int) {
