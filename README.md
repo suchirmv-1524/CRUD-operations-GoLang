@@ -1,4 +1,3 @@
-
 <h1 align="center">CRUD Operations Using GoLang</h1>
 
 
@@ -18,9 +17,9 @@ This project implements a RESTful API in GoLang for performing CRUD (Create, Rea
 ## Installation
 * Set up your MongoDB connection string in the server.go file.
 *  Run the server:
-```bash
+bash
 go run server.go
-```
+
 * Access the API at http://localhost:8080.
 
 ## Usage
